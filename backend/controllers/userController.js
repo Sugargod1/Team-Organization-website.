@@ -57,6 +57,10 @@ const registerUser = asyncHandler(async (req, res) => {
 // route POST / api/ users/ logout
 // @access Public
 const logoutUser = asyncHandler(async (req, res) => {
+  res.cookie("jwt", "", {
+    httpOnly: true,
+    expires: new Date(0),
+  });
   res.status(200).json({ message: "LogOut User" });
 });
 
@@ -64,15 +68,44 @@ const logoutUser = asyncHandler(async (req, res) => {
 // route Get / api/ users/ profile
 // @access PRIVATE
 const getUserProfile = asyncHandler(async (req, res) => {
-  res.status(200).json({ message: "User Profile" });
+  const user = {
+    _id: req.user._id,
+    name: req.user.name,
+    email: req.user.email,
+  };
+  res.status(200).json(user);
 });
 
 // @desc   Get user profile
 // route PUT / api/ users/ profile
 // @access PRIVATE
 const updateUserProfile = asyncHandler(async (req, res) => {
-  res.status(200).json({ message: "Update user profile" });
+  const user = await User.findById(req.user._id);
+  if (user) {
+    // Update user fields if provided
+    user.name = req.body.name || user.name;
+    user.email = req.body.email || user.email;
+
+    // If a password is provided, hash it before saving
+    if (req.body.password) {
+      user.password = await bcrypt.hash(req.body.password, 10); // Assuming you're using bcrypt
+    }
+
+    // Save the updated user
+    const updatedUser = await user.save();
+
+    // Respond with updated user details (no _prefix)
+    res.status(200).json({
+      _id: updatedUser._id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+    });
+  } else {
+    res.status(404);
+    throw new Error("User not found");
+  }
 });
+
 
 export {
   authUser,
